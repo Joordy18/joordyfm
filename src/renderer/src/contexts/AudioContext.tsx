@@ -169,9 +169,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (audioRef.current.src) {
             URL.revokeObjectURL(audioRef.current.src)
           }
+
+          const currentVolume = audioRef.current.volume
           
           audioRef.current.src = url
-          audioRef.current.volume = volume
+          audioRef.current.volume = currentVolume
           await audioRef.current.play()
           setCurrentTrack(track)
           setIsPlaying(true)

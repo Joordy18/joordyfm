@@ -124,7 +124,7 @@ ipcMain.handle('save-playlists', async (event, playlists) => {
 // Handler for loading playlists
 ipcMain.handle('load-playlists', async () => {
   try {
-    const playlistsPath = getLibraryPath()
+    const playlistsPath = getPlaylistsPath()
     const data = await fs.readFile(playlistsPath, 'utf-8')
     return JSON.parse(data)
   } catch (error){
