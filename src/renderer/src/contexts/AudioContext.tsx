@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useRef, useEffect, act } from 'react'
 import { MusicTrack } from '../types/electron'
 
 type RepeatMode = 'no-repeat' | 'repeat-all' | 'repeat-one'
@@ -20,6 +20,8 @@ interface AudioContextType {
   setPlaylist: (tracks: MusicTrack[]) => void
   repeatMode: RepeatMode
   toggleRepeatMode: () => void
+  shuffle: boolean
+  toggleShuffle: () => void
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined)
@@ -32,11 +34,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [volume, setVolumeState] = useState(1)
   const [playlist, setPlaylist] = useState<MusicTrack[]>([])
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('no-repeat')
+  const [shuffle, setShuffle] = useState(false)
+  const [shuffledPlaylist, setShuffledPlaylist] = useState<MusicTrack[]>([])
   
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackRef = useRef<MusicTrack | null>(null)
   const playlistRef = useRef<MusicTrack[]>([])
+  const shuffledPlaylistRef = useRef<MusicTrack[]>([])
   const repeatModeRef = useRef<RepeatMode>('no-repeat')
+  const shuffleRef = useRef(false)
 
   useEffect(() => {
     currentTrackRef.current = currentTrack
@@ -47,8 +53,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [playlist])
 
   useEffect(() => {
+    shuffledPlaylistRef.current = shuffledPlaylist
+  }, [shuffledPlaylist])
+
+  useEffect(() => {
     repeatModeRef.current = repeatMode
   }, [repeatMode])
+
+  useEffect(() => {
+    shuffleRef.current = shuffle
+  }, [shuffle])
+
+  const shuffleArray = (array: MusicTrack[]): MusicTrack[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length-1; i>0; i--){
+      const j = Math.floor(Math.random() * (i+1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  useEffect(() => {
+    if (shuffle && playlist.length > 0){
+      if (currentTrack){
+        const otherTracks = playlist.filter(t => t.path !== currentTrack.path)
+        const shuffled = shuffleArray(otherTracks)
+        setShuffledPlaylist([currentTrack, ...shuffled])
+      } else {
+        setShuffledPlaylist(shuffleArray(playlist))
+      }
+    }
+  }, [shuffle, playlist])
 
   useEffect(() => {
     audioRef.current = new Audio()
@@ -67,15 +102,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const handleEnded = () => {
       const track = currentTrackRef.current
-      const list = playlistRef.current
+      const originalList = playlistRef.current
+      const shuffledList = shuffledPlaylistRef.current
       const mode = repeatModeRef.current
-      
-      if (!track || list.length === 0){
+      const isShuffled = shuffleRef.current
+
+      const activePlaylist = isShuffled ? shuffledList : originalList
+
+      if (!track || activePlaylist.length === 0){
         setIsPlaying(false)
         return
       }
 
-      const currentIndex = list.findIndex(t => t.path === track.path)
+      const currentIndex = activePlaylist.findIndex(t => t.path === track.path)
 
       if (mode === 'repeat-one'){
         if (audioRef.current){
@@ -83,12 +122,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             audioRef.current.play()
         }
       } else if (mode === 'repeat-all'){
-        const nextIndex = (currentIndex+1) % list.length
-        playTrack(list[nextIndex])
+        const nextIndex = (currentIndex+1) % activePlaylist.length
+        playTrack(activePlaylist[nextIndex])
       } else {
         // no-repeat
-        if (currentIndex < list.length - 1){
-            playTrack(list[currentIndex+1])
+        if (currentIndex < activePlaylist.length - 1){
+            playTrack(activePlaylist[currentIndex+1])
         } else {
             setIsPlaying(false)
             setCurrentTrack(null)
@@ -177,18 +216,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const next = () => {
-    if (currentTrack && playlist.length > 0) {
-      const currentIndex = playlist.findIndex(t => t.path === currentTrack.path)
-      const nextIndex = (currentIndex + 1) % playlist.length
-      play(playlist[nextIndex])
+    if (currentTrack){
+      const activePlaylist = shuffle ? shuffledPlaylist : playlist
+
+      if (activePlaylist.length > 0){
+        const currentIndex = activePlaylist.findIndex(t => t.path === currentTrack.path)
+        const nextIndex = (currentIndex+1) % activePlaylist.length
+        play(activePlaylist[nextIndex])
+      }
     }
   }
 
   const previous = () => {
-    if (currentTrack && playlist.length > 0) {
-      const currentIndex = playlist.findIndex(t => t.path === currentTrack.path)
-      const previousIndex = currentIndex === 0 ? playlist.length - 1 : currentIndex - 1
-      play(playlist[previousIndex])
+    if (currentTrack){
+      const activePlaylist = shuffle ? shuffledPlaylist : playlist
+
+      if (activePlaylist.length > 0){
+        const currentIndex = activePlaylist.findIndex(t => t.path === currentTrack.path)
+        const previousIndex = currentIndex === 0 ? activePlaylist.length - 1 : currentIndex - 1
+        play(activePlaylist[previousIndex])
+      }
     }
   }
 
@@ -198,6 +245,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (current === 'repeat-all') return 'repeat-one'
       return 'no-repeat'
     })
+  }
+
+  const toggleShuffle = () => {
+    setShuffle(!shuffle)
   }
 
   return (
@@ -219,6 +270,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPlaylist,
         repeatMode,
         toggleRepeatMode,
+        shuffle,
+        toggleShuffle,
       }}
     >
       {children}

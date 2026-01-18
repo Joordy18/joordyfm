@@ -24,12 +24,12 @@ if (process.contextIsolated) {
 contextBridge.exposeInMainWorld('electronAPI', {
   selectMusicFiles: () => ipcRenderer.invoke('select-music-files'),
   getMusicMetadata: (filePath: string) => ipcRenderer.invoke('get-music-metadata', filePath),
-
-  
   saveLibrary: (tracks: any[]) => ipcRenderer.invoke('save-library', tracks),
   loadLibrary: () => ipcRenderer.invoke('load-library'),
   removeTrack: (trackPath: string) => ipcRenderer.invoke('remove-track', trackPath),
   readAudioFile: (filePath: string) => ipcRenderer.invoke('read-audio-file', filePath),
-
+  //Playlists
+  savePlaylists: (playlists: any[]) => ipcRenderer.invoke('save-playlists', playlists),
+  loadPlaylists: () => ipcRenderer.invoke('load-playlists')
 })
 

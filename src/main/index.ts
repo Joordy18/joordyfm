@@ -101,13 +101,40 @@ ipcMain.handle('select-music-files', async () => {
   return result.filePaths
 })
 
-
-
-
-
 const getLibraryPath = () => {
   return path.join(app.getPath('userData'), 'music-library.json')
 }
+
+const getPlaylistsPath = () => {
+  return path.join(app.getPath('userData'), 'playlists.json')
+}
+
+// Handler for saving playlists
+ipcMain.handle('save-playlists', async (event, playlists) => {
+  try {
+    const playlistsPath = getPlaylistsPath()
+    await fs.writeFile(playlistsPath, JSON.stringify(playlists, null, 2), 'utf-8')
+    return { success: true}
+  } catch(error){
+    console.error('Error while saving playlists:', error)
+    return { success: false, error: error.message}
+  }
+})
+
+// Handler for loading playlists
+ipcMain.handle('load-playlists', async () => {
+  try {
+    const playlistsPath = getLibraryPath()
+    const data = await fs.readFile(playlistsPath, 'utf-8')
+    return JSON.parse(data)
+  } catch (error){
+    if (error.code === 'ENOENT'){
+      return []
+    }
+    console.error('Error while loading playlists:', error)
+    return []
+  }
+})
 
 
 // Handler for extracting metadatas

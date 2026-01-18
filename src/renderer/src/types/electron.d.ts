@@ -9,6 +9,14 @@ export interface MusicTrack {
     cover?: Buffer
 }
 
+export interface Playlist {
+    id: string
+    name: string
+    tracks: MusicTrack[]
+    createdAt: number
+    updatedAt: number
+}
+
 declare global {
     interface Window {
         electronAPI: {
@@ -18,6 +26,9 @@ declare global {
             loadLibrary: () => Promise<MusicTrack[]>
             removeTrack: (trackPath: string) => Promise<{success: boolean; tracks?: MusicTrack[]; error?: string }>
             readAudioFile: (filePath: string) => Promise<Buffer | null>
+            //Playlists
+            savePlaylists: (playlists: Playlist[]) => Promise<{success: boolean; error?: string}>
+            loadPlaylists : () => Promise<Playlist[]>
         }
     }
 }

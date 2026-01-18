@@ -1,58 +1,87 @@
 import React from 'react'
 import { useAudio } from '../contexts/AudioContext'
+import { 
+  PlayIcon, 
+  PauseIcon, 
+  TrackPreviousIcon, 
+  TrackNextIcon,
+  ShuffleIcon,
+  LoopIcon,
+  SpeakerLoudIcon,
+  SpeakerModerateIcon,
+  SpeakerQuietIcon,
+  SpeakerOffIcon
+} from '@radix-ui/react-icons'
 
 const Player: React.FC = () => {
-    const {
-        currentTrack, 
-        isPlaying, 
-        currentTime, 
-        duration, 
-        volume,
-        pause, 
-        resume, 
-        seek, 
-        setVolume,
-        next,
-        previous,
-        repeatMode,
-        toggleRepeatMode,
-    } = useAudio()
+  const { 
+    currentTrack, 
+    isPlaying, 
+    currentTime, 
+    duration, 
+    volume,
+    pause, 
+    resume, 
+    seek, 
+    setVolume,
+    next,
+    previous,
+    repeatMode,
+    toggleRepeatMode,
+    shuffle,
+    toggleShuffle
+  } = useAudio()
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds/60)
-        const secs = Math.floor(seconds%60)
-        return `${mins}:${String(secs).padStart(2, '0')}`
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  }
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const percentage = x / rect.width
+    seek(percentage * duration)
+  }
+
+  const getVolumeIcon = () => {
+    if (volume === 0) return <SpeakerOffIcon width={20} height={20} />
+    if (volume < 0.33) return <SpeakerQuietIcon width={20} height={20} />
+    if (volume < 0.66) return <SpeakerModerateIcon width={20} height={20} />
+    return <SpeakerLoudIcon width={20} height={20} />
+  }
+
+  const getRepeatIcon = () => {
+    if (repeatMode === 'repeat-one') {
+      return (
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <LoopIcon width={20} height={20} />
+          <span style={{
+            position: 'absolute',
+            fontSize: '10px',
+            fontWeight: '700',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}>
+            1
+          </span>
+        </div>
+      )
     }
+    return <LoopIcon width={20} height={20} />
+  }
 
-    const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const rect = e.currentTarget.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const percentage = x / rect.width
-        seek(percentage*duration)
-    }
+  const getRepeatColor = () => {
+    return repeatMode === 'no-repeat' ? '#b3b3b3' : '#1db954'
+  }
 
-    const getRepeatIcon = () => {
-        switch (repeatMode) {
-            case 'no-repeat':
-                return '↻'
-            case 'repeat-all':
-                return '🔁'
-            case 'repeat-one':
-                return '🔂'
-            default:
-                return '↻'
-        }
-    }
+  if (!currentTrack) {
+    return null
+  }
 
-    const getRepeatColor = () => {
-        return repeatMode === 'no-repeat' ? '#b3b3b3' : '#1db954'
-    }
-
-    if (!currentTrack){
-        return null
-    }
-
-    return (
+  return (
     <div style={{
       position: 'fixed',
       bottom: 0,
@@ -109,7 +138,7 @@ const Player: React.FC = () => {
         </div>
       </div>
 
-      {/* Central controls */}
+      {/* Central Controles */}
       <div style={{ 
         flex: 1,
         display: 'flex',
@@ -118,9 +147,100 @@ const Player: React.FC = () => {
         gap: '8px',
         maxWidth: '722px'
       }}>
-        {/* Control buttons */}
+        {/* Controle Buttons */}
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button
+          {/* Shuffle Button */}
+          <button
+            onClick={toggleShuffle}
+            title={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: shuffle ? '#1db954' : '#b3b3b3',
+              cursor: 'pointer',
+              padding: '8px',
+              transition: 'color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => {
+              if (!shuffle) {
+                e.currentTarget.style.color = '#ffffff'
+              }
+            }}
+            onMouseLeave={(e) => e.currentTarget.style.color = shuffle ? '#1db954' : '#b3b3b3'}
+          >
+            <ShuffleIcon width={20} height={20} />
+          </button>
+
+          {/* Previous Button */}
+          <button
+            onClick={previous}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#b3b3b3',
+              cursor: 'pointer',
+              padding: '8px',
+              transition: 'color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
+          >
+            <TrackPreviousIcon width={20} height={20} />
+          </button>
+
+          {/* Play Button */}
+          <button
+            onClick={isPlaying ? pause : resume}
+            style={{
+              background: '#ffffff',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.1s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.06)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {isPlaying ? (
+              <PauseIcon width={20} height={20} color="#000000" />
+            ) : (
+              <PlayIcon width={20} height={20} color="#000000" />
+            )}
+          </button>
+
+          {/* Next Button */}
+          <button
+            onClick={next}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#b3b3b3',
+              cursor: 'pointer',
+              padding: '8px',
+              transition: 'color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
+          >
+            <TrackNextIcon width={20} height={20} />
+          </button>
+
+          {/* Repeat Button */}
+          <button
             onClick={toggleRepeatMode}
             title={
               repeatMode === 'no-repeat' 
@@ -134,9 +254,11 @@ const Player: React.FC = () => {
               border: 'none',
               color: getRepeatColor(),
               cursor: 'pointer',
-              fontSize: '20px',
               padding: '8px',
-              transition: 'color 0.2s'
+              transition: 'color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             onMouseEnter={(e) => {
               if (repeatMode === 'no-repeat') {
@@ -146,55 +268,6 @@ const Player: React.FC = () => {
             onMouseLeave={(e) => e.currentTarget.style.color = getRepeatColor()}
           >
             {getRepeatIcon()}
-          </button>
-          <button
-            onClick={previous}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#b3b3b3',
-              cursor: 'pointer',
-              fontSize: '20px',
-              padding: '8px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
-          >
-            ⏮
-          </button>
-
-          <button
-            onClick={isPlaying ? pause : resume}
-            style={{
-              background: '#ffffff',
-              border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px'
-            }}
-          >
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-
-          <button
-            onClick={next}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#b3b3b3',
-              cursor: 'pointer',
-              fontSize: '20px',
-              padding: '8px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
-          >
-            ⏭
           </button>
         </div>
 
@@ -238,7 +311,7 @@ const Player: React.FC = () => {
         </div>
       </div>
 
-      {/* Volume Control */}
+      {/* Volume Controle */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -247,7 +320,9 @@ const Player: React.FC = () => {
         width: '30%',
         justifyContent: 'flex-end'
       }}>
-        <span style={{ fontSize: '16px' }}>🔊</span>
+        <div style={{ color: '#b3b3b3', display: 'flex', alignItems: 'center' }}>
+          {getVolumeIcon()}
+        </div>
         <input
           type="range"
           min="0"
