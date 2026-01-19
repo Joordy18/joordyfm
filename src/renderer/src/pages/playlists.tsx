@@ -1,13 +1,16 @@
 import React, { useState } from 'react'
 import { usePlaylists } from '../contexts/PlaylistContext'
-import { PlusIcon, TrashIcon, Pencil1Icon } from '@radix-ui/react-icons'
+import { PlusIcon, TrashIcon, Pencil1Icon, ImageIcon } from '@radix-ui/react-icons'
 
 const Playlists: React.FC = () => {
-    const { playlists, createPlaylist, deletePlaylist, renamePlaylist } = usePlaylists()
+    const { playlists, createPlaylist, deletePlaylist, renamePlaylist, setPlaylistCover } = usePlaylists()
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [playlistToDelete, setPlaylistToDelete] = useState<{id: string, name: string} | null>(null)
     const [newPlaylistName, setNewPlaylistName] = useState('')
     const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null)
     const [editingName, setEditingName] = useState('')
+    const [hoveredPlaylistId, setHoveredPlaylistId] = useState<string | null>(null)
 
     const handleCreatePlaylist = async () => {
         if (newPlaylistName.trim()){
@@ -25,9 +28,34 @@ const Playlists: React.FC = () => {
         }
     }
 
-    const startEditing = async (id:string, currentName: string) => {
+    const startEditing = (id:string, currentName: string) => {
         setEditingPlaylistId(id)
         setEditingName(currentName)
+    }
+
+    const confirmDelete = (id: string, name: string) => {
+      setPlaylistToDelete({id,name})
+      setShowDeleteModal(true)
+    }
+
+    const handleDeletePlaylist = async () => {
+      if (playlistToDelete){
+        await deletePlaylist(playlistToDelete.id)
+        setShowDeleteModal(false)
+        setPlaylistToDelete(null)
+      }
+    }
+
+    const handleImageUpload = async (playlistId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file){
+        const reader = new FileReader()
+        reader.onload = async (event) => {
+          const base64 = event.target?.result as string
+          await setPlaylistCover(playlistId, base64)
+        }
+        reader.readAsDataURL(file)
+      }
     }
 
     return (
@@ -146,6 +174,72 @@ const Playlists: React.FC = () => {
         </div>
       )}
 
+      {/* Delete Playlist Modal */}
+      {showDeleteModal && playlistToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
+        onClick={() => setShowDeleteModal(false)}
+        >
+          <div 
+            style={{
+              background: '#282828',
+              padding: '30px',
+              borderRadius: '8px',
+              minWidth: '400px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0 }}>Delete playlist</h2>
+            <p style={{ color: '#b3b3b3', marginBottom: '24px' }}>
+              Are you sure you want to delete "<strong>{playlistToDelete.name}</strong>"? 
+              This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  padding: '10px 24px',
+                  background: 'transparent',
+                  color: '#b3b3b3',
+                  border: '1px solid #404040',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePlaylist}
+                style={{
+                  padding: '10px 24px',
+                  background: '#ff4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Playlists list */}
       {playlists.length === 0 ? (
         <div style={{
@@ -174,10 +268,16 @@ const Playlists: React.FC = () => {
                 cursor: 'pointer',
                 transition: 'background 0.2s'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#282828'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#181818'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#282828'
+                setHoveredPlaylistId(playlist.id)
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#181818'
+                setHoveredPlaylistId(null)
+              }}
             >
-              {/* Cover placeholder */}
+              {/* Cover with image upload button */}
               <div style={{
                 width: '100%',
                 aspectRatio: '1',
@@ -187,9 +287,53 @@ const Playlists: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '48px'
+                fontSize: '48px',
+                position: 'relative',
+                overflow: 'hidden'
               }}>
-                🎵
+                {playlist.coverImage ? (
+                  <img 
+                    src={playlist.coverImage} 
+                    alt={playlist.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  '🎵'
+                )}
+
+                {/* Button for changing image - shows on hover */}
+                <label 
+                  htmlFor={`cover-${playlist.id}`}
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    padding: '8px',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: hoveredPlaylistId === playlist.id ? 1 : 0,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ImageIcon width={16} height={16} color="white" />
+                </label>
+                <input
+                  id={`cover-${playlist.id}`}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(playlist.id, e)}
+                  style={{ display: 'none' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
 
               {/* Playlist name */}
@@ -265,9 +409,7 @@ const Playlists: React.FC = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (confirm(`Delete "${playlist.name}"?`)) {
-                      deletePlaylist(playlist.id)
-                    }
+                    confirmDelete(playlist.id, playlist.name)
                   }}
                   style={{
                     padding: '6px 12px',

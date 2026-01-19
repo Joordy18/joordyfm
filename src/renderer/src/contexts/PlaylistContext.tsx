@@ -9,6 +9,7 @@ interface PlaylistContextType {
     addTrackToPlaylist: (playlistId: string, track: MusicTrack) => Promise<void>
     removeTrackFromPlaylist: (playlistId: string, trackPath: string) => Promise<void>
     getPlaylist: (id: string) => Playlist | undefined
+    setPlaylistCover: (id: string, coverImage: string) => Promise<void>
 }
 
 const PlaylistContext = createContext<PlaylistContextType | undefined>(undefined)
@@ -97,7 +98,14 @@ export const PlaylistProvider: React.FC<{children:React.ReactNode}> = ({children
 
     const getPlaylist = (id: string) => {
         return playlists.find(p => p.id === id)
-     } 
+    } 
+
+    const setPlaylistCover = async (id:string, coverImage:string) => {
+        const updatedPlaylists = playlists.map( p => 
+            p.id === id ? { ...p, coverImage, updatedAt: Date.now() } : p
+        ) 
+        await savePlaylists(updatedPlaylists)
+    }
   
      return (
     <PlaylistContext.Provider
@@ -108,7 +116,8 @@ export const PlaylistProvider: React.FC<{children:React.ReactNode}> = ({children
         renamePlaylist,
         addTrackToPlaylist,
         removeTrackFromPlaylist,
-        getPlaylist
+        getPlaylist,
+        setPlaylistCover,
       }}
     >
       {children}

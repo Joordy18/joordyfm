@@ -13,6 +13,7 @@ export interface Playlist {
     id: string
     name: string
     tracks: MusicTrack[]
+    coverImage?: string
     createdAt: number
     updatedAt: number
 }
