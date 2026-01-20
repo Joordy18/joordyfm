@@ -2,7 +2,11 @@ import React, { useState } from 'react'
 import { usePlaylists } from '../contexts/PlaylistContext'
 import { PlusIcon, TrashIcon, Pencil1Icon, ImageIcon } from '@radix-ui/react-icons'
 
-const Playlists: React.FC = () => {
+interface PlaylistsProps {
+  onPlaylistClick: (playlistId: string) => void
+}
+
+const Playlists: React.FC<PlaylistsProps> = ({onPlaylistClick}) => {
     const { playlists, createPlaylist, deletePlaylist, renamePlaylist, setPlaylistCover } = usePlaylists()
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -261,6 +265,7 @@ const Playlists: React.FC = () => {
           {playlists.map((playlist) => (
             <div
               key={playlist.id}
+              onClick={() => onPlaylistClick(playlist.id)}
               style={{
                 background: '#181818',
                 padding: '20px',

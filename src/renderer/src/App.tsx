@@ -2,19 +2,29 @@ import { useState } from 'react'
 import Home from './pages/home'
 import Library from './pages/library'
 import Playlists from './pages/playlists'
+import PlaylistDetail from './pages/playlistDetail'
 import Player from './components/Player'
 import { AudioProvider } from './contexts/AudioContext'
-import { PlaylistProvider } from './contexts/PlaylistContext'
+import { PlaylistProvider, usePlaylists } from './contexts/PlaylistContext'
 import { HomeIcon, MixerHorizontalIcon, ListBulletIcon } from '@radix-ui/react-icons'
 
-type Page = 'home' | 'library' | 'playlists'
+type Page = 'home' | 'library' | 'playlists' | 'playlist-detail'
 
-function App(): React.JSX.Element {
+function AppContent(): React.JSX.Element {
   const [currentPage, setCurrentPage] = useState<Page>('home')
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
+  const { playlists } = usePlaylists()
+
+  const recentPlaylists = [...playlists]
+    .sort((a,b) => b.updatedAt - a.updatedAt)
+    .slice(0,5)
+
+  const navigateToPlaylist = (playlistId: string) => {
+    setSelectedPlaylistId(playlistId)
+    setCurrentPage('playlist-detail')
+  }
 
   return (
-    <AudioProvider>
-      <PlaylistProvider>
         <div style={{
           display: 'flex',
           height: '100vh',
@@ -111,7 +121,57 @@ function App(): React.JSX.Element {
             }}>
               Your Playlists
             </div>
-          </nav>
+
+            {/* List of recent playlist */}
+            {recentPlaylists.length === 0 ? (
+              <div style={{
+                padding: '8px 16px',
+                color: '#6a6a6a',
+                fontSize: '13px'
+              }}>
+                No playlists yet
+              </div>
+            ) : (
+              recentPlaylists.map((playlist) => (
+                <button
+                  key={playlist.id}
+                  onClick={() => navigateToPlaylist(playlist.id)}
+                  style={{
+                    padding: '8px 16px',
+                    background: currentPage === 'playlist-detail' && selectedPlaylistId === playlist.id 
+                      ? '#282828' 
+                      : 'transparent',
+                    color: currentPage === 'playlist-detail' && selectedPlaylistId === playlist.id
+                      ? '#ffffff'
+                      : '#b3b3b3',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 'playlist-detail' || selectedPlaylistId !== playlist.id) {
+                      e.currentTarget.style.background = '#1a1a1a'
+                      e.currentTarget.style.color = '#ffffff'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 'playlist-detail' || selectedPlaylistId !== playlist.id) {
+                      e.currentTarget.style.background = 'transparent'
+                      e.currentTarget.style.color = '#b3b3b3'
+                }
+            }}
+          >
+            {playlist.name}
+          </button>  
+          ))
+        )}
+       </nav>
 
           {/* Main Content */}
           <main style={{
@@ -125,9 +185,23 @@ function App(): React.JSX.Element {
           }}>
             {currentPage === 'home' && <Home />}
             {currentPage === 'library' && <Library />}
-            {currentPage === 'playlists' && <Playlists />}
-          </main>
+            {currentPage === 'playlists' && <Playlists onPlaylistClick={navigateToPlaylist} />}
+            {currentPage === 'playlist-detail' && selectedPlaylistId && (
+              <PlaylistDetail 
+                playlistId={selectedPlaylistId} 
+                onBack={() => setCurrentPage('playlists')}
+              />
+            )}
+        </main>
         </div>
+  )
+}
+
+function App(): React.JSX.Element {
+  return (
+    <AudioProvider>
+      <PlaylistProvider>
+        <AppContent />
         <Player />
       </PlaylistProvider>
     </AudioProvider>
