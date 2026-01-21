@@ -10,6 +10,7 @@ interface PlaylistContextType {
     removeTrackFromPlaylist: (playlistId: string, trackPath: string) => Promise<void>
     getPlaylist: (id: string) => Playlist | undefined
     setPlaylistCover: (id: string, coverImage: string) => Promise<void>
+    reorderTracks: (playlistId, fromIndex: number, toIndex: number) => Promise<void>
 }
 
 const PlaylistContext = createContext<PlaylistContextType | undefined>(undefined)
@@ -106,6 +107,24 @@ export const PlaylistProvider: React.FC<{children:React.ReactNode}> = ({children
         ) 
         await savePlaylists(updatedPlaylists)
     }
+
+    const reorderTracks = async (playlistId: string, fromIndex: number, toIndex: number) => {
+        const updatedPlaylists = playlists.map(p => {
+            if (p.id === playlistId){
+                const newTracks = [...p.tracks]
+                const [movedTracks] = newTracks.splice(fromIndex, 1)
+                newTracks.splice(toIndex, 0, movedTracks)
+
+                return {
+                    ...p,
+                    tracks: newTracks,
+                    updatedAt: Date.now()
+                }
+            }
+            return p
+        })
+        await savePlaylists(updatedPlaylists)
+    }
   
      return (
     <PlaylistContext.Provider
@@ -118,6 +137,7 @@ export const PlaylistProvider: React.FC<{children:React.ReactNode}> = ({children
         removeTrackFromPlaylist,
         getPlaylist,
         setPlaylistCover,
+        reorderTracks,
       }}
     >
       {children}
