@@ -12,3 +12,53 @@ body {
   margin: 0;
   padding: 0;
 }
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #000000;
+  padding: 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  transition: width 0.2s;
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px;
+  padding-bottom: 114px;
+  background: #121212;
+  color: white;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-text {
+  display: inline;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    width: 60px;
+    min-width: 60px;
+    padding: 24px 8px;
+  }
+
+  .sidebar-text {
+    display: none;
+  }
+
+  .app-sidebar button {
+    justify-content: center;
+    padding: 12px 8px !important;
+  }
+}

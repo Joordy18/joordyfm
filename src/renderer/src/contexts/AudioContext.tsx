@@ -24,6 +24,7 @@ interface AudioContextType {
   toggleRepeatMode: () => void
   shuffle: boolean
   toggleShuffle: () => void
+  isOnline: boolean
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined)
@@ -46,6 +47,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const shuffledPlaylistRef = useRef<Track[]>([])
   const repeatModeRef = useRef<RepeatMode>('no-repeat')
   const shuffleRef = useRef(false)
+
+  // Online status
+  const [isOnline, setIsOnline] = useState(window.navigator.onLine)
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     currentTrackRef.current = currentTrack
@@ -216,6 +233,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
       } else if (track.type === 'youtube-stream') {
+        // Check internet connection
+        if (!isOnline) {
+          alert('You are offline. Connect to the internet to stream music.')
+          setIsPlaying(false)
+          return
+        }
+
         // Streaming YouTube
         const result = await window.electronAPI.getYouTubeStreamUrl(track.id)
 
@@ -328,6 +352,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleRepeatMode,
         shuffle,
         toggleShuffle,
+        isOnline,
       }}
     >
       {children}

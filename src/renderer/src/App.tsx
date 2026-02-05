@@ -7,9 +7,9 @@ import YouTube from './pages/youtube' // NOUVEAU
 import Player from './components/Player'
 import { AudioProvider } from './contexts/AudioContext'
 import { PlaylistProvider, usePlaylists } from './contexts/PlaylistContext'
-import { 
-  HomeIcon, 
-  MixerHorizontalIcon, 
+import {
+  HomeIcon,
+  MixerHorizontalIcon,
   ListBulletIcon,
   MagnifyingGlassIcon // NOUVEAU
 } from '@radix-ui/react-icons'
@@ -31,22 +31,8 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      overflow: 'hidden' 
-    }}>
-      <nav style={{
-        width: '240px',
-        minWidth: '240px',
-        background: '#000000',
-        padding: '24px 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px', 
-        boxSizing: 'border-box',
-        overflowY: 'auto'
-      }}>
+    <div className="app-container">
+      <nav className="app-sidebar">
         <button
           onClick={() => setCurrentPage('home')}
           style={{
@@ -65,7 +51,7 @@ const AppContent: React.FC = () => {
             gap: '12px'
           }}
         >
-          <HomeIcon width={20} height={20} /> Home
+          <HomeIcon width={20} height={20} /> <span className="sidebar-text">Home</span>
         </button>
 
         {/* NOUVEAU : Bouton Search */}
@@ -87,7 +73,7 @@ const AppContent: React.FC = () => {
             gap: '12px'
           }}
         >
-          <MagnifyingGlassIcon width={20} height={20} /> Search
+          <MagnifyingGlassIcon width={20} height={20} /> <span className="sidebar-text">Search</span>
         </button>
 
         <button
@@ -108,7 +94,7 @@ const AppContent: React.FC = () => {
             gap: '12px'
           }}
         >
-          <MixerHorizontalIcon width={20} height={20} /> Library
+          <MixerHorizontalIcon width={20} height={20} /> <span className="sidebar-text">Library</span>
         </button>
 
         <button
@@ -129,7 +115,7 @@ const AppContent: React.FC = () => {
             gap: '12px'
           }}
         >
-          <ListBulletIcon width={20} height={20} /> Playlists
+          <ListBulletIcon width={20} height={20} /> <span className="sidebar-text">Playlists</span>
         </button>
 
         <div style={{
@@ -145,7 +131,7 @@ const AppContent: React.FC = () => {
           padding: '8px 16px',
           textTransform: 'uppercase',
           letterSpacing: '0.1em'
-        }}>
+        }} className="sidebar-text">
           Your Playlists
         </div>
 
@@ -155,7 +141,7 @@ const AppContent: React.FC = () => {
             color: '#6a6a6a',
             fontSize: '13px'
           }}>
-            No playlists yet
+            <span className="sidebar-text">No playlists yet</span>
           </div>
         ) : (
           recentPlaylists.map((playlist) => (
@@ -164,8 +150,8 @@ const AppContent: React.FC = () => {
               onClick={() => navigateToPlaylist(playlist.id)}
               style={{
                 padding: '8px 16px',
-                background: currentPage === 'playlist-detail' && selectedPlaylistId === playlist.id 
-                  ? '#282828' 
+                background: currentPage === 'playlist-detail' && selectedPlaylistId === playlist.id
+                  ? '#282828'
                   : 'transparent',
                 color: currentPage === 'playlist-detail' && selectedPlaylistId === playlist.id
                   ? '#ffffff'
@@ -193,28 +179,20 @@ const AppContent: React.FC = () => {
                 }
               }}
             >
-              {playlist.name}
+              <span className="sidebar-text">{playlist.name}</span>
             </button>
           ))
         )}
       </nav>
 
-      <main style={{
-        flex: 1,
-        padding: '24px',
-        paddingBottom: '114px',
-        background: '#121212',
-        color: 'white',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
+      <main className="app-main">
         {currentPage === 'home' && <Home />}
         {currentPage === 'youtube' && <YouTube />} {/* NOUVEAU */}
         {currentPage === 'library' && <Library />}
         {currentPage === 'playlists' && <Playlists onPlaylistClick={navigateToPlaylist} />}
         {currentPage === 'playlist-detail' && selectedPlaylistId && (
-          <PlaylistDetail 
-            playlistId={selectedPlaylistId} 
+          <PlaylistDetail
+            playlistId={selectedPlaylistId}
             onBack={() => setCurrentPage('playlists')}
           />
         )}

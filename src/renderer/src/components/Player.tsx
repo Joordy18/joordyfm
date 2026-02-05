@@ -1,9 +1,9 @@
 import React from 'react'
 import { useAudio } from '../contexts/AudioContext'
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  TrackPreviousIcon, 
+import {
+  PlayIcon,
+  PauseIcon,
+  TrackPreviousIcon,
   TrackNextIcon,
   ShuffleIcon,
   LoopIcon,
@@ -14,15 +14,15 @@ import {
 } from '@radix-ui/react-icons'
 
 const Player: React.FC = () => {
-  const { 
-    currentTrack, 
-    isPlaying, 
-    currentTime, 
-    duration, 
+  const {
+    currentTrack,
+    isPlaying,
+    currentTime,
+    duration,
     volume,
-    pause, 
-    resume, 
-    seek, 
+    pause,
+    resume,
+    seek,
     setVolume,
     next,
     previous,
@@ -81,6 +81,39 @@ const Player: React.FC = () => {
     return null
   }
 
+  const getCoverImage = () => {
+    if (!currentTrack) return null
+
+    // Local track with buffer cover
+    if (currentTrack.type === 'local' && (currentTrack as any).cover) {
+      const cover = (currentTrack as any).cover
+      let data: number[] = []
+
+      if (cover instanceof Uint8Array) {
+        data = Array.from(cover)
+      } else if (cover.type === 'Buffer' && Array.isArray(cover.data)) {
+        data = cover.data
+      } else {
+        data = Array.from(new Uint8Array(cover))
+      }
+
+      const base64 = btoa(
+        data.reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      )
+      return `data:image/jpeg;base64,${base64}`
+    }
+
+    // YouTube track
+    if (currentTrack.type !== 'local' && (currentTrack as any).thumbnail) {
+      return (currentTrack as any).thumbnail
+    }
+
+    return null
+  }
+
   return (
     <div style={{
       position: 'fixed',
@@ -97,9 +130,9 @@ const Player: React.FC = () => {
       zIndex: 1000
     }}>
       {/* Song Info */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
         gap: '12px',
         minWidth: '180px',
         width: '30%'
@@ -112,13 +145,22 @@ const Player: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '24px'
+          fontSize: '24px',
+          overflow: 'hidden'
         }}>
-          🎵
+          {getCoverImage() ? (
+            <img
+              src={getCoverImage()!}
+              alt="Cover"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            '🎵'
+          )}
         </div>
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ 
-            fontWeight: '400', 
+          <div style={{
+            fontWeight: '400',
             fontSize: '14px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -126,20 +168,20 @@ const Player: React.FC = () => {
           }}>
             {currentTrack.title}
           </div>
-          <div style={{ 
-            fontSize: '12px', 
+          <div style={{
+            fontSize: '12px',
             color: '#b3b3b3',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis'
           }}>
-            {currentTrack.artist}
+            {(currentTrack as any).artist || (currentTrack as any).channel || 'Unknown Artist'}
           </div>
         </div>
       </div>
 
       {/* Central Controles */}
-      <div style={{ 
+      <div style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
@@ -243,11 +285,11 @@ const Player: React.FC = () => {
           <button
             onClick={toggleRepeatMode}
             title={
-              repeatMode === 'no-repeat' 
-                ? 'No repeat' 
-                : repeatMode === 'repeat-all' 
-                ? 'Repeat all' 
-                : 'Repeat one'
+              repeatMode === 'no-repeat'
+                ? 'No repeat'
+                : repeatMode === 'repeat-all'
+                  ? 'Repeat all'
+                  : 'Repeat one'
             }
             style={{
               background: 'transparent',
@@ -272,16 +314,16 @@ const Player: React.FC = () => {
         </div>
 
         {/* Progress Bar */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: '12px',
           width: '100%'
         }}>
           <span style={{ fontSize: '12px', color: '#b3b3b3', minWidth: '40px' }}>
             {formatTime(currentTime)}
           </span>
-          
+
           <div
             onClick={handleProgressClick}
             style={{
@@ -312,9 +354,9 @@ const Player: React.FC = () => {
       </div>
 
       {/* Volume Controle */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
         gap: '8px',
         minWidth: '125px',
         width: '30%',

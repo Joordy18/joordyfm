@@ -110,6 +110,14 @@ const getPlaylistsPath = () => {
   return path.join(app.getPath('userData'), 'playlists.json')
 }
 
+const getYouTubeDownloadsPath = () => {
+  return path.join(app.getPath('userData'), 'downloads', 'youtube')
+}
+
+const getYouTubeTracksPath = () => {
+  return path.join(app.getPath('userData'), 'youtube-tracks.json')
+}
+
 // Handler for saving playlists
 ipcMain.handle('save-playlists', async (event, playlists) => {
   try {
@@ -187,17 +195,93 @@ ipcMain.handle('load-library', async (event, tracks) => {
 })
 
 // Handler for removing a track from library
+// Handler for removing a track from library
 ipcMain.handle('remove-track', async (event, trackPath) => {
   try {
+    // 1. Remove from Library
     const libraryPath = getLibraryPath()
-    const data = await fs.readFile(libraryPath, 'utf-8')
-    const tracks = JSON.parse(data)
+    let libTracks: any[] = []
+    try {
+      const data = await fs.readFile(libraryPath, 'utf-8')
+      libTracks = JSON.parse(data)
+    } catch (e) { /* ignore */ }
 
-    const updatedTracks = tracks.filter((track: any) => track.path !== trackPath)
+    const updatedTracks = libTracks.filter((track: any) => track.path !== trackPath)
 
-    await fs.writeFile(libraryPath, JSON.stringify(updatedTracks, null, 2), 'utf-8')
+    if (libTracks.length !== updatedTracks.length) {
+      await fs.writeFile(libraryPath, JSON.stringify(updatedTracks, null, 2), 'utf-8')
+    }
+
+    // 2. Check if it's a YouTube track and handle deletion
+    const ytTracksPath = getYouTubeTracksPath()
+    let ytTracks: any[] = []
+    let ytTracksChanged = false
+    try {
+      const ytData = await fs.readFile(ytTracksPath, 'utf-8')
+      ytTracks = JSON.parse(ytData)
+    } catch (e) { /* ignore */ }
+
+    const ytTrackIndex = ytTracks.findIndex((t: any) => t.localPath === trackPath)
+
+    if (ytTrackIndex !== -1) {
+      // It IS a YouTube download -> Delete file
+      try {
+        // Double check it exists before unlink to avoid error log
+        await fs.access(trackPath)
+        await fs.unlink(trackPath)
+        console.log('Deleted YouTube file:', trackPath)
+      } catch (err) {
+        console.log('File already deleted or not accessible:', err)
+      }
+
+      // Update state
+      ytTracks[ytTrackIndex].isDownloaded = false
+      ytTracks[ytTrackIndex].localPath = undefined
+      // ytTracks[ytTrackIndex].type = 'youtube-stream'
+      ytTracksChanged = true
+    }
+
+    if (ytTracksChanged) {
+      await fs.writeFile(ytTracksPath, JSON.stringify(ytTracks, null, 2), 'utf-8')
+    }
+
+    // 3. Remove from all Playlists
+    const playlistsPath = getPlaylistsPath()
+    let playlists: any[] = []
+    let playlistsChanged = false
+    try {
+      const plData = await fs.readFile(playlistsPath, 'utf-8')
+      playlists = JSON.parse(plData)
+    } catch (e) { /* ignore */ }
+
+    playlists = playlists.map((playlist: any) => {
+      const originalLen = playlist.tracks.length
+      // Remove if path matches (Local/MusicTrack) OR localPath matches (YouTubeTrack downloaded)
+      playlist.tracks = playlist.tracks.filter((t: any) => {
+        if (t.path === trackPath) return false
+        if (t.localPath === trackPath) return false
+
+        // Also remove if it matches the YouTube ID of the deleted track (if it was a YT download)
+        if (ytTrackIndex !== -1 && ytTracks[ytTrackIndex].id && t.id === ytTracks[ytTrackIndex].id) {
+          return false
+        }
+
+        return true
+      })
+
+      if (playlist.tracks.length !== originalLen) {
+        playlistsChanged = true
+      }
+      return playlist
+    })
+
+    if (playlistsChanged) {
+      await fs.writeFile(playlistsPath, JSON.stringify(playlists, null, 2), 'utf-8')
+      console.log('Removed track from playlists')
+    }
+
     return { success: true, tracks: updatedTracks }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error while deleting:', error)
     return { success: false, error: error.message }
   }
@@ -216,13 +300,7 @@ ipcMain.handle('read-audio-file', async (event, filePath: string) => {
 
 // YouTube handlers
 
-const getYouTubeDownloadsPath = () => {
-  return path.join(app.getPath('userData'), 'downloads', 'youtube')
-}
 
-const getYouTubeTracksPath = () => {
-  return path.join(app.getPath('userData'), 'youtube-tracks.json')
-}
 
 // On beginning creating YT downloads folder
 app.whenReady().then(async () => {
@@ -321,11 +399,12 @@ ipcMain.handle('get-youtube-stream-url', async (event, videoId: string) => {
     const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked')
     const ffprobePath = require('ffprobe-static').path.replace('app.asar', 'app.asar.unpacked')
 
-    // Obtenir les infos avec yt-dlp
-    const info: any = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
-      dumpSingleJson: true,
+    // Obtenir l'URL directement (beaucoup plus rapide)
+    const urlOutput: any = await ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
+      getUrl: true,
       format: 'bestaudio/best',
-      noPlaylist: true
+      noPlaylist: true,
+      noWarnings: true,
     }, {
       env: {
         ...process.env,
@@ -333,9 +412,8 @@ ipcMain.handle('get-youtube-stream-url', async (event, videoId: string) => {
       }
     })
 
-    // Extraire l'URL du meilleur format audio
-    const audioFormat = info.formats?.find((f: any) => f.acodec !== 'none' && f.vcodec === 'none')
-    const url = audioFormat?.url || info.url
+    // ytdl-exec avec getUrl renvoie une string (l'URL) ou stdout
+    const url = typeof urlOutput === 'string' ? urlOutput.trim() : urlOutput
 
     if (url) {
       console.log('Stream URL obtained')

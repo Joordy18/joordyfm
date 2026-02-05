@@ -17,7 +17,7 @@ interface PlaylistDetailProps {
 
 const PlaylistDetail: React.FC<PlaylistDetailProps> = ({ playlistId, onBack }) => {
   const { getPlaylist, removeTrackFromPlaylist, reorderTracks } = usePlaylists()
-  const { play, setPlaylist: setAudioPlaylist } = useAudio()
+  const { play, setPlaylist: setAudioPlaylist, isOnline } = useAudio()
   const playlist = getPlaylist(playlistId)
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
@@ -291,23 +291,24 @@ const PlaylistDetail: React.FC<PlaylistDetailProps> = ({ playlistId, onBack }) =
                   gap: '16px',
                   padding: '8px 16px',
                   borderRadius: '4px',
-                  cursor: draggedIndex === index ? 'grabbing' : 'pointer',
+                  cursor: draggedIndex === index ? 'grabbing' : (!isOnline && track.type === 'youtube-stream' ? 'not-allowed' : 'pointer'),
                   transition: 'background 0.2s',
                   background: draggedIndex === index
                     ? '#404040'
                     : dropTargetIndex === index
                       ? '#1a1a1a'
                       : 'transparent',
-                  opacity: draggedIndex === index ? 0.5 : 1,
+                  opacity: draggedIndex === index ? 0.5 : (!isOnline && track.type === 'youtube-stream' ? 0.5 : 1),
                   borderTop: dropTargetIndex === index && draggedIndex !== null && draggedIndex < index
                     ? '2px solid #1db954'
                     : 'none',
                   borderBottom: dropTargetIndex === index && draggedIndex !== null && draggedIndex > index
                     ? '2px solid #1db954'
-                    : 'none'
+                    : 'none',
+                  filter: !isOnline && track.type === 'youtube-stream' ? 'grayscale(100%)' : 'none'
                 }}
                 onMouseEnter={(e) => {
-                  if (draggedIndex === null) {
+                  if (draggedIndex === null && (isOnline || track.type !== 'youtube-stream')) {
                     e.currentTarget.style.background = '#282828'
                   }
                 }}

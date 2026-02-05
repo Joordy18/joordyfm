@@ -1,87 +1,99 @@
-import { useState, useEffect} from 'react'
+import { useState, useEffect } from 'react'
 
-import MusicImporter  from "@renderer/components/MusicImporter";
+import MusicImporter from "@renderer/components/MusicImporter";
 import { MusicTrack } from "@renderer/types/electron";
 import { useAudio } from '../contexts/AudioContext'
+import { usePlaylists } from '../contexts/PlaylistContext';
 
 function Library(): React.JSX.Element {
-    const [tracks, setTracks] = useState<MusicTrack[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const { play, setPlaylist, currentTrack } = useAudio()
+  const [tracks, setTracks] = useState<MusicTrack[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const { play, setPlaylist, currentTrack } = useAudio()
+  const { refreshPlaylists } = usePlaylists()
 
-    useEffect(() => {
-        loadLibrary()
-    }, [])
+  useEffect(() => {
+    loadLibrary()
+  }, [])
 
-    useEffect(() => {
-      setPlaylist(tracks)
-    }, [tracks])
+  useEffect(() => {
+    setPlaylist(tracks)
+  }, [tracks])
 
-    const loadLibrary = async () => {
-        setIsLoading(true)
-        try {
-            const savedTracks = await window.electronAPI.loadLibrary()
-            setTracks(savedTracks)
-        } catch (error){
-            console.error('Error while loading', error)
-        } finally {
-            setIsLoading(false)
-        }
+  const loadLibrary = async () => {
+    setIsLoading(true)
+    try {
+      const savedTracks = await window.electronAPI.loadLibrary()
+      setTracks(savedTracks)
+    } catch (error) {
+      console.error('Error while loading', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleImport = async (newTracks: MusicTrack[]) => {
+    // Filter dupes
+    const existingPaths = new Set(tracks.map(t => t.path))
+    const uniqueNewTracks = newTracks.filter(t => !existingPaths.has(t.path))
+
+    const updatedTracks = [...tracks, ...uniqueNewTracks]
+    setTracks(updatedTracks)
+
+    // Automatically save
+    const result = await window.electronAPI.saveLibrary(updatedTracks)
+    if (result.success) {
+      console.log(`${uniqueNewTracks.length} songs added and saved`)
+    } else {
+      console.error('Error while saving', result.error)
+    }
+  }
+
+  const handleRemove = async (trackPath: string) => {
+    const result = await window.electronAPI.removeTrack(trackPath)
+    if (result.success && result.tracks) {
+      setTracks(result.tracks)
+      await refreshPlaylists()
+      console.log('Deleted song and refreshed playlists')
+    } else {
+      console.error('Error while deleting song', result.error)
+    }
+  }
+
+  // convert cover buffer into image
+  const getCoverImage = (cover?: Buffer) => {
+    if (!cover) return null
+
+    let data: number[] = []
+    if (cover instanceof Uint8Array) {
+      data = Array.from(cover)
+    } else if ((cover as any).type === 'Buffer' && Array.isArray((cover as any).data)) {
+      data = (cover as any).data
+    } else {
+      data = Array.from(new Uint8Array(cover as any))
     }
 
-    const handleImport = async (newTracks: MusicTrack[]) => {
-        // Filter dupes
-        const existingPaths = new Set(tracks.map(t => t.path))
-        const uniqueNewTracks = newTracks.filter(t => !existingPaths.has(t.path))
+    const base64 = btoa(
+      data.reduce(
+        (data, byte) => data + String.fromCharCode(byte),
+        ''
+      )
+    )
+    return `data:image/jpeg;base64,${base64}`
+  }
 
-        const updatedTracks = [...tracks, ...uniqueNewTracks]
-        setTracks(updatedTracks)
-        
-        // Automatically save
-        const result = await window.electronAPI.saveLibrary(updatedTracks)
-        if (result.success){
-            console.log(`${uniqueNewTracks.length} songs added and saved`)
-        } else {
-            console.error('Error while saving', result.error)
-        }
-    }
-
-    const handleRemove = async (trackPath: string) => {
-        const result = await window.electronAPI.removeTrack(trackPath)
-        if (result.success && result.tracks) {
-            setTracks(result.tracks)
-            console.log('Deleted song')
-        }else {
-            console.error('Error while deleting song', result.error)
-        }
-    }
-
-    // convert cover buffer into image
-    const getCoverImage = (cover?: Buffer) => {
-        if (!cover) return null
-        
-        const base64 = btoa(
-            new Uint8Array(cover as any).reduce(
-                (data, byte) => data + String.fromCharCode(byte),
-                ''
-            )
-        )
-        return `data:image/jpeg;base64,${base64}`
-    }
-
-    if (isLoading){
-        return ( 
-            <div>
-                <h1>My Library</h1>
-                <p>Loading...</p>
-            </div>
-        )
-    }
-
+  if (isLoading) {
     return (
+      <div>
+        <h1>My Library</h1>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  return (
     <div>
       <h1>My Library</h1>
-      
+
       <div style={{ marginTop: '20px', marginBottom: '30px' }}>
         <MusicImporter onImport={handleImport} />
       </div>
@@ -91,7 +103,7 @@ function Library(): React.JSX.Element {
         <h2 style={{ marginBottom: '16px', color: '#b3b3b3' }}>
           {tracks.length} song{tracks.length > 1 ? 's' : ''}
         </h2>
-        
+
         {tracks.length === 0 ? (
           <p style={{ color: '#b3b3b3', textAlign: 'center', marginTop: '40px' }}>
             No song yet here
@@ -136,8 +148,8 @@ function Library(): React.JSX.Element {
                 justifyContent: 'center'
               }}>
                 {getCoverImage(track.cover) ? (
-                  <img 
-                    src={getCoverImage(track.cover)!} 
+                  <img
+                    src={getCoverImage(track.cover)!}
                     alt={track.title}
                     style={{
                       width: '100%',

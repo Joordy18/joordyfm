@@ -12,6 +12,7 @@ interface PlaylistContextType {
     getPlaylist: (id: string) => Playlist | undefined
     setPlaylistCover: (id: string, coverImage: string) => Promise<void>
     reorderTracks: (playlistId, fromIndex: number, toIndex: number) => Promise<void>
+    refreshPlaylists: () => Promise<void>
 }
 
 const PlaylistContext = createContext<PlaylistContextType | undefined>(undefined)
@@ -194,6 +195,7 @@ export const PlaylistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 getPlaylist,
                 setPlaylistCover,
                 reorderTracks,
+                refreshPlaylists: loadPlaylists
             }}
         >
             {children}
