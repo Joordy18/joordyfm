@@ -1,23 +1,25 @@
-import React, { createContext, useContext, useState, useRef, useEffect, act } from 'react'
-import { MusicTrack } from '../types/electron'
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
+import { MusicTrack, YouTubeTrack, Track } from '../types/electron'
 
 type RepeatMode = 'no-repeat' | 'repeat-all' | 'repeat-one'
+type SourceType = 'local' | 'youtube-stream' | 'youtube-downloaded'
 
 interface AudioContextType {
-  currentTrack: MusicTrack | null
+  currentTrack: Track | null
   isPlaying: boolean
   currentTime: number
   duration: number
   volume: number
-  play: (track: MusicTrack) => void
+  currentSource: SourceType | null
+  play: (track: Track) => void
   pause: () => void
   resume: () => void
   seek: (time: number) => void
   setVolume: (volume: number) => void
   next: () => void
   previous: () => void
-  playlist: MusicTrack[]
-  setPlaylist: (tracks: MusicTrack[]) => void
+  playlist: Track[]
+  setPlaylist: (tracks: Track[]) => void
   repeatMode: RepeatMode
   toggleRepeatMode: () => void
   shuffle: boolean
@@ -27,20 +29,21 @@ interface AudioContextType {
 const AudioContext = createContext<AudioContextType | undefined>(undefined)
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentTrack, setCurrentTrack] = useState<MusicTrack | null>(null)
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
-  const [playlist, setPlaylist] = useState<MusicTrack[]>([])
+  const [playlist, setPlaylist] = useState<Track[]>([])
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('no-repeat')
   const [shuffle, setShuffle] = useState(false)
-  const [shuffledPlaylist, setShuffledPlaylist] = useState<MusicTrack[]>([])
-  
+  const [shuffledPlaylist, setShuffledPlaylist] = useState<Track[]>([])
+  const [currentSource, setCurrentSource] = useState<SourceType | null>(null)
+
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const currentTrackRef = useRef<MusicTrack | null>(null)
-  const playlistRef = useRef<MusicTrack[]>([])
-  const shuffledPlaylistRef = useRef<MusicTrack[]>([])
+  const currentTrackRef = useRef<Track | null>(null)
+  const playlistRef = useRef<Track[]>([])
+  const shuffledPlaylistRef = useRef<Track[]>([])
   const repeatModeRef = useRef<RepeatMode>('no-repeat')
   const shuffleRef = useRef(false)
 
@@ -64,19 +67,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     shuffleRef.current = shuffle
   }, [shuffle])
 
-  const shuffleArray = (array: MusicTrack[]): MusicTrack[] => {
+  const shuffleArray = (array: Track[]): Track[] => {
     const shuffled = [...array]
-    for (let i = shuffled.length-1; i>0; i--){
-      const j = Math.floor(Math.random() * (i+1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
   }
 
   useEffect(() => {
-    if (shuffle && playlist.length > 0){
-      if (currentTrack){
-        const otherTracks = playlist.filter(t => t.path !== currentTrack.path)
+    if (shuffle && playlist.length > 0) {
+      if (currentTrack) {
+        const trackId = getTrackId(currentTrack)
+        const otherTracks = playlist.filter(t => getTrackId(t) !== trackId)
         const shuffled = shuffleArray(otherTracks)
         setShuffledPlaylist([currentTrack, ...shuffled])
       } else {
@@ -85,9 +89,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [shuffle, playlist])
 
+  // Helper pour obtenir un ID unique pour chaque track
+  const getTrackId = (track: Track): string => {
+    if (!track.type || track.type === 'local') {
+      return (track as MusicTrack).path
+    } else {
+      return (track as YouTubeTrack).id
+    }
+  }
+
   useEffect(() => {
     audioRef.current = new Audio()
-    
+
     const handleTimeUpdate = () => {
       if (audioRef.current) {
         setCurrentTime(audioRef.current.currentTime)
@@ -109,43 +122,43 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const activePlaylist = isShuffled ? shuffledList : originalList
 
-      if (!track || activePlaylist.length === 0){
+      if (!track || activePlaylist.length === 0) {
         setIsPlaying(false)
         return
       }
 
-      const currentIndex = activePlaylist.findIndex(t => t.path === track.path)
+      const trackId = getTrackId(track)
+      const currentIndex = activePlaylist.findIndex(t => getTrackId(t) === trackId)
 
-      if (mode === 'repeat-one'){
-        if (audioRef.current){
-            audioRef.current.currentTime = 0
-            audioRef.current.play()
+      if (mode === 'repeat-one') {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0
+          audioRef.current.play()
         }
-      } else if (mode === 'repeat-all'){
-        const nextIndex = (currentIndex+1) % activePlaylist.length
+      } else if (mode === 'repeat-all') {
+        const nextIndex = (currentIndex + 1) % activePlaylist.length
         playTrack(activePlaylist[nextIndex])
       } else {
-        // no-repeat
-        if (currentIndex < activePlaylist.length - 1){
-            playTrack(activePlaylist[currentIndex+1])
+        if (currentIndex < activePlaylist.length - 1) {
+          playTrack(activePlaylist[currentIndex + 1])
         } else {
-            setIsPlaying(false)
-            setCurrentTrack(null)
-            setCurrentTime(0)
+          setIsPlaying(false)
+          setCurrentTrack(null)
+          setCurrentTime(0)
         }
       }
     }
 
     const handleError = (e: Event) => {
-      console.error('Erreur audio:', e)
+      console.error('Audio error:', e)
       setIsPlaying(false)
     }
-    
+
     audioRef.current.addEventListener('timeupdate', handleTimeUpdate)
     audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata)
     audioRef.current.addEventListener('ended', handleEnded)
     audioRef.current.addEventListener('error', handleError)
-    
+
     return () => {
       if (audioRef.current) {
         audioRef.current.pause()
@@ -157,35 +170,73 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [])
 
-  const playTrack = async (track: MusicTrack) => {
-    if (audioRef.current) {
-      try {
+  const playTrack = async (track: Track) => {
+    if (!audioRef.current) return
+
+    try {
+      const currentVolume = audioRef.current.volume
+
+      // Nettoyer l'ancienne source
+      if (audioRef.current.src) {
+        URL.revokeObjectURL(audioRef.current.src)
+      }
+
+      // Lecture selon le type de track
+      // Lecture selon le type de track
+      if (!track.type || track.type === 'local') {
+        // Lecture locale (existant)
         const buffer = await window.electronAPI.readAudioFile(track.path)
-        
+
         if (buffer) {
           const blob = new Blob([new Uint8Array(buffer)], { type: 'audio/mpeg' })
           const url = URL.createObjectURL(blob)
-          
-          if (audioRef.current.src) {
-            URL.revokeObjectURL(audioRef.current.src)
-          }
 
-          const currentVolume = audioRef.current.volume
-          
           audioRef.current.src = url
           audioRef.current.volume = currentVolume
           await audioRef.current.play()
           setCurrentTrack(track)
+          setCurrentSource('local')
           setIsPlaying(true)
         }
-      } catch (error) {
-        console.error('Error while listening:', error)
-        setIsPlaying(false)
+      } else if (track.type === 'youtube-downloaded') {
+        // Lecture d'un téléchargement YouTube
+        if (track.localPath) {
+          const buffer = await window.electronAPI.readAudioFile(track.localPath)
+
+          if (buffer) {
+            const blob = new Blob([new Uint8Array(buffer)], { type: 'audio/mpeg' })
+            const url = URL.createObjectURL(blob)
+
+            audioRef.current.src = url
+            audioRef.current.volume = currentVolume
+            await audioRef.current.play()
+            setCurrentTrack(track)
+            setCurrentSource('youtube-downloaded')
+            setIsPlaying(true)
+          }
+        }
+      } else if (track.type === 'youtube-stream') {
+        // Streaming YouTube
+        const result = await window.electronAPI.getYouTubeStreamUrl(track.id)
+
+        if (result.success && result.url) {
+          audioRef.current.src = result.url
+          audioRef.current.volume = currentVolume
+          await audioRef.current.play()
+          setCurrentTrack(track)
+          setCurrentSource('youtube-stream')
+          setIsPlaying(true)
+        } else {
+          throw new Error(result.error || 'Failed to get stream URL')
+        }
       }
+    } catch (error) {
+      console.error('Error while playing:', error)
+      setIsPlaying(false)
     }
   }
 
-  const play = (track: MusicTrack) => {
+  const play = (track: Track) => {
     playTrack(track)
   }
 
@@ -218,23 +269,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const next = () => {
-    if (currentTrack){
+    if (currentTrack) {
       const activePlaylist = shuffle ? shuffledPlaylist : playlist
 
-      if (activePlaylist.length > 0){
-        const currentIndex = activePlaylist.findIndex(t => t.path === currentTrack.path)
-        const nextIndex = (currentIndex+1) % activePlaylist.length
+      if (activePlaylist.length > 0) {
+        const trackId = getTrackId(currentTrack)
+        const currentIndex = activePlaylist.findIndex(t => getTrackId(t) === trackId)
+        const nextIndex = (currentIndex + 1) % activePlaylist.length
         play(activePlaylist[nextIndex])
       }
     }
   }
 
   const previous = () => {
-    if (currentTrack){
+    if (currentTrack) {
       const activePlaylist = shuffle ? shuffledPlaylist : playlist
 
-      if (activePlaylist.length > 0){
-        const currentIndex = activePlaylist.findIndex(t => t.path === currentTrack.path)
+      if (activePlaylist.length > 0) {
+        const trackId = getTrackId(currentTrack)
+        const currentIndex = activePlaylist.findIndex(t => getTrackId(t) === trackId)
         const previousIndex = currentIndex === 0 ? activePlaylist.length - 1 : currentIndex - 1
         play(activePlaylist[previousIndex])
       }
@@ -261,6 +314,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentTime,
         duration,
         volume,
+        currentSource,
         play,
         pause,
         resume,

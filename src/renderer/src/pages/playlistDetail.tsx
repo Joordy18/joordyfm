@@ -1,91 +1,96 @@
 import React, { useState } from 'react'
 import { usePlaylists } from '../contexts/PlaylistContext'
 import { useAudio } from '../contexts/AudioContext'
-import { MusicTrack } from '../types/electron'
-import { 
-  ArrowLeftIcon, 
-  PlayIcon, 
+import { MusicTrack, YouTubeTrack, Track } from '../types/electron'
+import {
+  ArrowLeftIcon,
+  PlayIcon,
   TrashIcon,
   DragHandleDots2Icon,
   PlusIcon
 } from '@radix-ui/react-icons'
 
 interface PlaylistDetailProps {
-    playlistId: string
-    onBack: () => void
+  playlistId: string
+  onBack: () => void
 }
 
-const PlaylistDetail: React.FC<PlaylistDetailProps> = ({playlistId, onBack}) => {
-    const { getPlaylist, removeTrackFromPlaylist, reorderTracks } = usePlaylists()
-    const { play, setPlaylist: setAudioPlaylist } = useAudio()
-    const playlist = getPlaylist(playlistId)
+const PlaylistDetail: React.FC<PlaylistDetailProps> = ({ playlistId, onBack }) => {
+  const { getPlaylist, removeTrackFromPlaylist, reorderTracks } = usePlaylists()
+  const { play, setPlaylist: setAudioPlaylist } = useAudio()
+  const playlist = getPlaylist(playlistId)
 
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-    const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null)
-    const [showAddModal, setShowAddModal] = useState(false)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
-    if (!playlist){
-        return (
-            <div>
-                <h1>Playlist not found</h1>
-                <button onClick={onBack}>Go back</button>
-            </div>
-        )
-    }
-
-    const handlePlayAll = () => {
-        if (playlist.tracks.length > 0){
-            setAudioPlaylist(playlist.tracks)
-            play(playlist.tracks[0])
-        }
-    }
-
-    const handlePlayTrack = (track: MusicTrack) => {
-        setAudioPlaylist(playlist.tracks)
-        play(track)
-    }
-
-    const handleRemoveTrack = async (trackPath: string) => {
-        await removeTrackFromPlaylist(playlistId, trackPath)
-    }
-
-    const handleDragStart = (e: React.DragEvent, index:number) => {
-        setDraggedIndex(index)
-        e.dataTransfer.effectAllowed = 'move'
-    }
-
-    const handleDragOver = (e: React.DragEvent, index: number) => {
-        e.preventDefault()
-        e.dataTransfer.effectAllowed = 'move'
-
-        if (draggedIndex !== null && draggedIndex !== index){
-          setDropTargetIndex(index)
-        }
-    }
-
-    const handleDrop = async (e: React.DragEvent, index:number) => {
-      e.preventDefault()
-
-      if (draggedIndex !== null && draggedIndex !== index){
-        await reorderTracks(playlistId, draggedIndex, index)
-      }
-
-      setDraggedIndex(null)
-      setDropTargetIndex(null)
-    }
-
-    const handleDragEnd = () => {
-        setDraggedIndex(null)
-        setDropTargetIndex(null)
-    }
-
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds/60)
-        const secs = Math.floor(seconds%60)
-        return `${mins}:${String(secs).padStart(2, '0')}`
-    }
-
+  if (!playlist) {
     return (
+      <div>
+        <h1>Playlist not found</h1>
+        <button onClick={onBack}>Go back</button>
+      </div>
+    )
+  }
+
+  const getTrackId = (track: Track) => {
+    const type = track.type || 'local'
+    return type === 'local' ? (track as MusicTrack).path : (track as YouTubeTrack).id
+  }
+
+  const handlePlayAll = () => {
+    if (playlist.tracks.length > 0) {
+      setAudioPlaylist(playlist.tracks)
+      play(playlist.tracks[0])
+    }
+  }
+
+  const handlePlayTrack = (track: Track) => {
+    setAudioPlaylist(playlist.tracks)
+    play(track)
+  }
+
+  const handleRemoveTrack = async (trackId: string) => {
+    await removeTrackFromPlaylist(playlistId, trackId)
+  }
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.effectAllowed = 'move'
+
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDropTargetIndex(index)
+    }
+  }
+
+  const handleDrop = async (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+
+    if (draggedIndex !== null && draggedIndex !== index) {
+      await reorderTracks(playlistId, draggedIndex, index)
+    }
+
+    setDraggedIndex(null)
+    setDropTargetIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+    setDropTargetIndex(null)
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  }
+
+  return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
@@ -125,8 +130,8 @@ const PlaylistDetail: React.FC<PlaylistDetailProps> = ({playlistId, onBack}) => 
             boxShadow: '0 4px 60px rgba(0,0,0,0.5)'
           }}>
             {playlist.coverImage ? (
-              <img 
-                src={playlist.coverImage} 
+              <img
+                src={playlist.coverImage}
                 alt={playlist.name}
                 style={{
                   width: '100%',
@@ -142,16 +147,16 @@ const PlaylistDetail: React.FC<PlaylistDetailProps> = ({playlistId, onBack}) => 
 
           {/* Info */}
           <div>
-            <div style={{ 
-              fontSize: '12px', 
+            <div style={{
+              fontSize: '12px',
               fontWeight: '700',
               textTransform: 'uppercase',
               marginBottom: '8px'
             }}>
               Playlist
             </div>
-            <h1 style={{ 
-              fontSize: '48px', 
+            <h1 style={{
+              fontSize: '48px',
               fontWeight: '900',
               margin: '0 0 24px 0',
               lineHeight: '1'
@@ -166,11 +171,11 @@ const PlaylistDetail: React.FC<PlaylistDetailProps> = ({playlistId, onBack}) => 
       </div>
 
       {/* Actions */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '16px', 
+      <div style={{
+        display: 'flex',
+        gap: '16px',
         marginBottom: '24px',
-        alignItems: 'center' 
+        alignItems: 'center'
       }}>
         <button
           onClick={handlePlayAll}
@@ -268,156 +273,166 @@ const PlaylistDetail: React.FC<PlaylistDetailProps> = ({playlistId, onBack}) => 
           </div>
 
           {/* Tracks */}
-          {playlist.tracks.map((track, index) => (
-            <div
-              key={track.path}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              onClick={() => handlePlayTrack(track)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '50px 40px 1fr 1fr 100px 50px',
-                gap: '16px',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: draggedIndex === index ? 'grabbing' : 'pointer',
-                transition: 'background 0.2s',
-                background: draggedIndex === index 
-                  ? '#404040' 
-                  : dropTargetIndex === index 
-                  ? '#1a1a1a' 
-                  : 'transparent',
-                opacity: draggedIndex === index ? 0.5 : 1,
-                borderTop: dropTargetIndex === index && draggedIndex !== null && draggedIndex < index 
-                  ? '2px solid #1db954' 
-                  : 'none',
-                borderBottom: dropTargetIndex === index && draggedIndex !== null && draggedIndex > index 
-                  ? '2px solid #1db954' 
-                  : 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (draggedIndex === null) {
-                  e.currentTarget.style.background = '#282828'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (draggedIndex !== index && dropTargetIndex !== index) {
-                  e.currentTarget.style.background = 'transparent'
-                }
-              }}
-            >
-              {/* Drag handle */}
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  color: '#b3b3b3',
-                  cursor: 'grab'
+          {playlist.tracks.map((track, index) => {
+            const trackId = getTrackId(track)
+
+            return (
+              <div
+                key={trackId}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                onClick={() => handlePlayTrack(track)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '50px 40px 1fr 1fr 100px 50px',
+                  gap: '16px',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: draggedIndex === index ? 'grabbing' : 'pointer',
+                  transition: 'background 0.2s',
+                  background: draggedIndex === index
+                    ? '#404040'
+                    : dropTargetIndex === index
+                      ? '#1a1a1a'
+                      : 'transparent',
+                  opacity: draggedIndex === index ? 0.5 : 1,
+                  borderTop: dropTargetIndex === index && draggedIndex !== null && draggedIndex < index
+                    ? '2px solid #1db954'
+                    : 'none',
+                  borderBottom: dropTargetIndex === index && draggedIndex !== null && draggedIndex > index
+                    ? '2px solid #1db954'
+                    : 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (draggedIndex === null) {
+                    e.currentTarget.style.background = '#282828'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (draggedIndex !== index && dropTargetIndex !== index) {
+                    e.currentTarget.style.background = 'transparent'
+                  }
                 }}
               >
-                <DragHandleDots2Icon width={20} height={20} />
-              </div>
-
-              {/* Index */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                color: '#b3b3b3',
-                fontSize: '14px'
-              }}>
-                {index + 1}
-              </div>
-
-              {/* Title & Artist */}
-              <div 
-              onClick={() => handlePlayTrack(track)}
-              style={{
-                display: 'flex', 
-                flexDirection: 'column',
-                justifyContent: 'center',
-                overflow: 'hidden'
-              }}>
-                <div style={{ 
-                  fontWeight: '400',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {track.title}
+                {/* Drag handle */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#b3b3b3',
+                    cursor: 'grab'
+                  }}
+                >
+                  <DragHandleDots2Icon width={20} height={20} />
                 </div>
-                <div style={{ 
-                  fontSize: '14px', 
+
+                {/* Index */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#b3b3b3',
+                  fontSize: '14px'
+                }}>
+                  {index + 1}
+                </div>
+
+                {/* Title & Artist */}
+                <div
+                  onClick={() => handlePlayTrack(track)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
+                  }}>
+                  <div style={{
+                    fontWeight: '400',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {track.title}
+                  </div>
+                  {/* Artist/Channel */}
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#b3b3b3',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {(track.type || 'local') === 'local' ? (track as MusicTrack).artist : (track as YouTubeTrack).channel}
+                    {(track.type && track.type !== 'local') && (
+                      <span style={{ color: '#1db954', marginLeft: '4px', fontSize: '10px', border: '1px solid #1db954', padding: '0 4px', borderRadius: '4px' }}>
+                        {track.type === 'youtube-stream' ? 'STREAM' : 'DL'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Album */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '14px',
                   color: '#b3b3b3',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
-                  {track.artist}
+                  {(track.type || 'local') === 'local' ? (track as MusicTrack).album : (track as YouTubeTrack).channel}
+                </div>
+
+                {/* Duration */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  color: '#b3b3b3',
+                  fontSize: '14px'
+                }}>
+                  {formatTime(track.duration)}
+                </div>
+
+                {/* Delete button */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveTrack(trackId)
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#b3b3b3',
+                      cursor: 'pointer',
+                      padding: '4px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff4444'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
+                  >
+                    <TrashIcon width={16} height={16} />
+                  </button>
                 </div>
               </div>
-
-              {/* Album */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                fontSize: '14px', 
-                color: '#b3b3b3',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {track.album}
-              </div>
-
-              {/* Duration */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                color: '#b3b3b3',
-                fontSize: '14px'
-              }}>
-                {formatTime(track.duration)}
-              </div>
-
-              {/* Delete button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveTrack(track.path)
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#b3b3b3',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff4444'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#b3b3b3'}
-                >
-                  <TrashIcon width={16} height={16} />
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
-const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
+const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void }> = ({
   playlistId,
   onClose
 }) => {
   const [libraryTracks, setLibraryTracks] = useState<MusicTrack[]>([])
   const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set())
-  const { addTrackToPlaylist, getPlaylist } = usePlaylists()
+  const { addTracksToPlaylist, getPlaylist } = usePlaylists()
   const playlist = getPlaylist(playlistId)
 
   React.useEffect(() => {
@@ -428,17 +443,21 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
     try {
       const tracks = await window.electronAPI.loadLibrary()
 
-      const playlistTrackPaths = new Set(playlist?.tracks.map(t => t.path) || [])
+      const playlistTrackPaths = new Set(
+        playlist?.tracks
+          .filter(t => t.type === 'local')
+          .map(t => (t as MusicTrack).path) || []
+      )
       const availableTracks = tracks.filter(t => !playlistTrackPaths.has(t.path))
       setLibraryTracks(availableTracks)
-    } catch (error){
+    } catch (error) {
       console.error('Error loading library', error)
     }
   }
 
   const toggleTrack = (trackPath: string) => {
     const newSelected = new Set(selectedTracks)
-    if (newSelected.has(trackPath)){
+    if (newSelected.has(trackPath)) {
       newSelected.delete(trackPath)
     } else {
       newSelected.add(trackPath)
@@ -447,12 +466,19 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
   }
 
   const handleAddTracks = async () => {
-    for (const trackPath of selectedTracks){
+    const tracksToAdd: MusicTrack[] = []
+
+    for (const trackPath of selectedTracks) {
       const track = libraryTracks.find(t => t.path === trackPath)
-      if (track){
-        await addTrackToPlaylist(playlistId, track)
+      if (track) {
+        tracksToAdd.push(track)
       }
     }
+
+    if (tracksToAdd.length > 0) {
+      await addTracksToPlaylist(playlistId, tracksToAdd)
+    }
+
     onClose()
   }
 
@@ -463,7 +489,7 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
   }
 
   return (
-    <div 
+    <div
       style={{
         position: 'fixed',
         top: 0,
@@ -478,7 +504,7 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
       }}
       onClick={onClose}
     >
-      <div 
+      <div
         style={{
           background: '#282828',
           borderRadius: '8px',
@@ -491,7 +517,7 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ 
+        <div style={{
           padding: '24px',
           borderBottom: '1px solid #404040'
         }}>
@@ -502,16 +528,16 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
         </div>
 
         {/* List */}
-        <div style={{ 
+        <div style={{
           flex: 1,
           overflowY: 'auto',
           padding: '16px'
         }}>
           {libraryTracks.length === 0 ? (
-            <div style={{ 
-              textAlign: 'center', 
+            <div style={{
+              textAlign: 'center',
               padding: '40px 20px',
-              color: '#b3b3b3' 
+              color: '#b3b3b3'
             }}>
               No songs available to add
             </div>
@@ -560,7 +586,7 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
 
                 {/* Track info */}
                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <div style={{ 
+                  <div style={{
                     fontWeight: '400',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -568,8 +594,8 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
                   }}>
                     {track.title}
                   </div>
-                  <div style={{ 
-                    fontSize: '14px', 
+                  <div style={{
+                    fontSize: '14px',
                     color: '#b3b3b3',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -580,8 +606,8 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
                 </div>
 
                 {/* Duration */}
-                <div style={{ 
-                  color: '#b3b3b3', 
+                <div style={{
+                  color: '#b3b3b3',
                   fontSize: '14px',
                   flexShrink: 0
                 }}>
@@ -593,7 +619,7 @@ const AddSongsModal: React.FC<{ playlistId: string; onClose: () => void}> = ({
         </div>
 
         {/* Footer */}
-        <div style={{ 
+        <div style={{
           padding: '16px 24px',
           borderTop: '1px solid #404040',
           display: 'flex',
